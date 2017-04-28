@@ -15,8 +15,14 @@ if len(sys.argv)<3:
 dictionary={}
 for index in range(1,len(sys.argv)-1):
     for line in open(sys.argv[index],'r'):
-        dictionary[line]=0
+        #print "-",line[0:line.find('+')]
+        #print "-",line
+        dictionary[line[0:line.find('+')]]=0
 
 for line in open(sys.argv[-1],'r'):
-    if line not in dictionary:
-        print line.strip()
+    #print line.strip()
+    if line.strip() not in dictionary:
+        print line.strip()+"+no"
+    else:
+        #print line
+        pass
