@@ -6,6 +6,12 @@
 
 import DNS
 import sys
+from random import randint
+
+server=['1.2.4.8','8.8.8.8','223.6.6.6','114.114.114.114']
+
+def random_generator():
+    return randint(0,len(server)-1)
 
 def get_domain_ip(domain,cache={}):
     """
@@ -14,7 +20,7 @@ def get_domain_ip(domain,cache={}):
     if domain in cache.keys():
         return cache[domain]
     else:
-        req=DNS.Request(domain,qtype=DNS.Type.A,server='223.6.6.6',timeout=5)
+        req=DNS.Request(domain,qtype=DNS.Type.A,server=server[random_generator()],timeout=5)
         res=req.req()
         ips=[]
         for rr in res.answers:
