@@ -1,3 +1,4 @@
 # 忽略一些文件\文件夹
 
 produce-consume-model/input
+*.txt

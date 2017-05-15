@@ -38,10 +38,14 @@ class ProduceConsumerModel:
                 td.start()
             for td in self.__consume_threads:
                 td.start()
+        except Exception,e:
+            raise
+
+    def join(self):
+        try:
             for td in self.__consume_threads:
                 td.join()
             for td in self.__produce_threads:
                 td.join()
         except Exception,e:
-            print e
             raise
