@@ -9,6 +9,7 @@
 |tools/GetLineFromABC.py|求文件差集|对文件大小有一定限制|
 |produce-consume-model/|多线程入库|不支持多重生产-消费模型|
 |tools/GetDomainNS.py|获取域名的名字服务器的ip|使用[阿里dns](http://www.alidns.com/),不保证速率;注意不要造成DDOS攻击|
+|shell-scripts/calculate.sh|shell脚本中的计算工具|依赖awk|
 
 todo:
   - [ ] 添加语言和依赖库说明
