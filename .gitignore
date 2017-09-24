@@ -2,3 +2,4 @@
 
 produce-consume-model/input
 *.txt
+*.pyc
