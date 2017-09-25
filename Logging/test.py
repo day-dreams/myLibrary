@@ -4,7 +4,7 @@ import threading
 
 def log(num):
     logger = Logger.Logger()
-    for _ in range(5):
+    for _ in range(10000):
         logger.log("hello from " + str(num))
 
 
