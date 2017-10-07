@@ -1,7 +1,7 @@
 #! coding:utf-8
 
 """
-    DNS发包机，不处理相应包
+    异步DNS类
 """
 
 import select
