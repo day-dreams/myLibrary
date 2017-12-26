@@ -18,14 +18,14 @@ class AsyncRequest(object):
         """
             默认socket的recv buffer为3MiB
         """
-        self.sock_recv_buffer_size=sock_recv_buffer_size
+        self.sock_recv_buffer_size = sock_recv_buffer_size
 
         self.sock = socket.socket(
             family=socket.AF_INET, type=socket.SOCK_DGRAM)
 
         # 这个选项需要命令支持：sysctl -w net.core.rmem_max=10485760
         self.sock.setsockopt(
-            socket.SOL_SOCKET, socket.SO_RCVBUF,self.sock_recv_buffer_size)
+            socket.SOL_SOCKET, socket.SO_RCVBUF, self.sock_recv_buffer_size)
 
     def refresh_socket(self):
         """
@@ -36,7 +36,7 @@ class AsyncRequest(object):
         self.sock.setsockopt(
             socket.SOL_SOCKET, socket.SO_RCVBUF, self.sock_recv_buffer_size)
 
-    def _add_qheader(self,packer,recursive):
+    def _add_qheader(self, packer, recursive):
         """
             生成DNS请求的头部,并添加到packer中
         """
@@ -55,12 +55,12 @@ class AsyncRequest(object):
             发送请求数据包，不返回任何响应
         """
         packer = Lib.Mpacker()
-        self._add_qheader(packer,recursive)
-        packer.addQuestion(qname,qtype,qclass)
-        request_data=packer.getbuf()
-        self.sock.sendto(request_data,(server,port))
+        self._add_qheader(packer, recursive)
+        packer.addQuestion(qname, qtype, qclass)
+        request_data = packer.getbuf()
+        self.sock.sendto(request_data, (server, port))
 
-    def recv(self,timeout=3):
+    def recv(self, timeout=3):
         """
             返回一个生成器，用于迭代socket在timeout内接受到的响应包
         """
@@ -72,7 +72,8 @@ class AsyncRequest(object):
             (response_buffer, address) = self.sock.recvfrom(65535)
             u = Lib.Munpacker(response_buffer)
             r = Lib.DnsResult(u, {})
-            yield r
+            yield (r, address[0])
+
 
 def test():
     """
@@ -88,29 +89,31 @@ def test():
     def qnameGenerator(ip):
         return "baidu.com"
 
-    sender=AsyncRequest()
+    sender = AsyncRequest()
 
     ips = ['202.102.154.3']
 
-
-    for i in range(1,100):
+    for i in range(1, 100):
         a, b = 0, 0
 
         for _ in range(i * 100):
             for ip in ips:
-                sender.send(ip,"www.hitwh.edu.cn")
-                a+=1
+                sender.send(ip, "www.hitwh.edu.cn")
+                a += 1
 
-        for res in sender.recv():
+        for data in sender.recv():
             b += 1
-            # print res.header
+
+            res = data[0]
+            ip = data[1]
+            # print res.header, ip
             # print res.answers
             # print res.authority
             # print res.additional
 
         sender.refresh_socket()
 
-        print "send:%d,recv:%d,pkt_loss_rate:%f"%(a, b,1-float(b)/a)
+        print "send:%d,recv:%d,pkt_loss_rate:%f" % (a, b, 1 - float(b) / a)
 
 
 if __name__ == "__main__":
