@@ -13,15 +13,30 @@ from DNS import Class
 from DNS import Opcode
 
 
-class QheaderGenerateHandle:
-    """
-        生成qheader的工具类,需指定qypte,recursive;默认qclass为IN
-    """
+class AsyncRequest(object):
+    def __init__(self, sock_recv_buffer_size=1024 * 1024 * 3):
+        """
+            默认socket的recv buffer为3MiB
+        """
+        self.sock_recv_buffer_size=sock_recv_buffer_size
 
-    def __init__(self,  recursive=True):
-        self.recursive = recursive
+        self.sock = socket.socket(
+            family=socket.AF_INET, type=socket.SOCK_DGRAM)
 
-    def add_qheader(self, packer):
+        # 这个选项需要命令支持：sysctl -w net.core.rmem_max=10485760
+        self.sock.setsockopt(
+            socket.SOL_SOCKET, socket.SO_RCVBUF,self.sock_recv_buffer_size)
+
+    def refresh_socket(self):
+        """
+            使用一个新的socket
+        """
+        self.sock = socket.socket(
+            family=socket.AF_INET, type=socket.SOCK_DGRAM)
+        self.sock.setsockopt(
+            socket.SOL_SOCKET, socket.SO_RCVBUF, self.sock_recv_buffer_size)
+
+    def _add_qheader(self,packer,recursive):
         """
             生成DNS请求的头部,并添加到packer中
         """
@@ -29,67 +44,35 @@ class QheaderGenerateHandle:
         # 操作为查询
         opcode = Opcode.QUERY
         # 期望递归
-        if self.recursive:
+        if recursive:
             rd = 1
         else:
             rd = 0
         packer.addHeader(tid, 0, opcode, 0, 0, rd, 0, 0, 0, 1, 0, 0, 0)
 
-
-class AsyncDnsSender:
-    """
-        异步发包机器
-    """
-
-    def __init__(self, qname_generator_handle, response_handle, qtype=Type.A, recursive=True):
+    def send(self, server, qname, qtype=Type.A, recursive=True, qclass=Class.IN, port=53):
         """
-            qname_generator_handle: 根据ip生成qname并返回
-            qtype:查询类型
-            recursive:是否要求递归
-            response_handle:处理响应包的回调函数
+            发送请求数据包，不返回任何响应
         """
-        self.generate_qname_callback = qname_generator_handle
-        self.response_callback = response_handle
-        self.qtype = qtype
-        self.qclass = Class.IN
-        self.port = 53
-        self.generate_qheader_callback = QheaderGenerateHandle(recursive)
-        pass
+        packer = Lib.Mpacker()
+        self._add_qheader(packer,recursive)
+        packer.addQuestion(qname,qtype,qclass)
+        request_data=packer.getbuf()
+        self.sock.sendto(request_data,(server,port))
 
-    def async_send(self, ips):
+    def recv(self,timeout=3):
         """
-            异步发送请求.
+            返回一个生成器，用于迭代socket在timeout内接受到的响应包
         """
-
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        source_port = random.randint(1024, 65535)
-
-        for ip in ips:
-            m = Lib.Mpacker()
-            self.generate_qheader_callback.add_qheader(m)
-            qname = self.generate_qname_callback(ip)
-            m.addQuestion(qname, self.qtype, self.qclass)
-            request = m.getbuf()
-
-            try:
-                self.socket.sendto(request, (ip, self.port))
-            except socket.error, reason:
-                pass
-
-    def async_recv(self):
-        """
-            接受所有响应包,并调用回调函数
-        """
-        s = self.socket
         while True:
-            rsocket, wsocket, errsocket = select.select([s], [], [], 1)
+            rsocket, wsocket, errsocket = select.select(
+                [self.sock], [], [], timeout)
             if len(rsocket) == 0:
-                break
-            (response_buffer, address) = s.recvfrom(65535)
+                return
+            (response_buffer, address) = self.sock.recvfrom(65535)
             u = Lib.Munpacker(response_buffer)
             r = Lib.DnsResult(u, {})
-            self.response_callback(r)
-
+            yield r
 
 def test():
     """
@@ -105,15 +88,29 @@ def test():
     def qnameGenerator(ip):
         return "baidu.com"
 
-    sender = AsyncDnsSender(qnameGenerator, responseCallback)
+    sender=AsyncRequest()
 
-    _ips = ['1.2.4.8', '8.8.8.8', '114.114.114.114', '223.6.6.6', '223.5.5.5']
-    ips = []
-    for _ in range(1000):
-        ips += _ips
+    ips = ['202.102.154.3']
 
-    sender.async_send(ips)
-    sender.async_recv()
+
+    for i in range(1,100):
+        a, b = 0, 0
+
+        for _ in range(i * 100):
+            for ip in ips:
+                sender.send(ip,"www.hitwh.edu.cn")
+                a+=1
+
+        for res in sender.recv():
+            b += 1
+            # print res.header
+            # print res.answers
+            # print res.authority
+            # print res.additional
+
+        sender.refresh_socket()
+
+        print "send:%d,recv:%d,pkt_loss_rate:%f"%(a, b,1-float(b)/a)
 
 
 if __name__ == "__main__":
